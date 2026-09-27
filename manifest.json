@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "B2BLeads — Find Leads on This Site",
+  "version": "1.0.0",
+  "description": "Find business leads for the site you're currently browsing, right from your toolbar.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "options.html",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["https://api.b2bleadsapi.com/*"]
+}

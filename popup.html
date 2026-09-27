@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>B2BLeads</title>
+<link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon48.png" alt="" />
+    <h1>B2BLeads</h1>
+  </div>
+
+  <div id="domain-bar" class="domain-bar"></div>
+
+  <div id="no-key" class="state hidden">
+    <p>Add your API key to start searching.</p>
+    <button id="open-options">Open settings</button>
+  </div>
+
+  <div id="bad-tab" class="state hidden">
+    <p class="muted">Open a company website to search for leads there.</p>
+  </div>
+
+  <div id="loading" class="state hidden">
+    <p class="muted">Searching…</p>
+  </div>
+
+  <div id="error" class="state hidden">
+    <p class="error-text"></p>
+    <button id="retry">Retry</button>
+  </div>
+
+  <div id="results" class="state hidden">
+    <div class="results-toolbar">
+      <input id="list-name" type="text" placeholder="List name" />
+      <button id="save-all">Add all to list</button>
+    </div>
+    <ul id="results-list"></ul>
+  </div>
+
+  <div id="empty" class="state hidden">
+    <p class="muted">No leads found for this site.</p>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
