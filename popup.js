@@ -53,19 +53,75 @@ function escapeAttr(s) {
 }
 
 let currentHostname = null
+let currentQuery = null
 let lastLeads = []
 
-async function runSearch(hostname, { saveToList = false, listName = "" } = {}) {
+// Runs inside the page (via chrome.scripting.executeScript) — Places text
+// search matches on business name, not on a bare domain string, so we try to
+// recover the actual business/site name from the page instead of searching
+// for "chistoshop.net" verbatim.
+function extractBusinessNameFromPage() {
+  function clean(s) {
+    return (s || "").replace(/\s+/g, " ").trim()
+  }
+  const og = document.querySelector('meta[property="og:site_name"]')?.content
+  if (clean(og)) return clean(og)
+
+  const appName = document.querySelector('meta[name="application-name"]')?.content
+  if (clean(appName)) return clean(appName)
+
+  for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+    try {
+      const data = JSON.parse(script.textContent)
+      const items = Array.isArray(data) ? data : [data]
+      for (const item of items) {
+        const type = item?.["@type"]
+        const isOrg = type === "Organization" || type === "LocalBusiness" || (Array.isArray(type) && type.includes("LocalBusiness"))
+        if (isOrg && clean(item.name)) return clean(item.name)
+      }
+    } catch {
+      // ignore malformed JSON-LD
+    }
+  }
+
+  const title = clean(document.title)
+  if (title) {
+    // Titles are usually "Page — Site Name" or "Site Name | Page"; the site
+    // name is more often the longest segment (page-specific words tend to be
+    // short), so pick that rather than assuming a fixed position.
+    const segments = title.split(/\s*[|\-–—]\s*/).filter(Boolean)
+    if (segments.length > 1) {
+      return segments.reduce((a, b) => (b.length > a.length ? b : a))
+    }
+    return title
+  }
+  return null
+}
+
+async function resolveSearchQuery(tab, hostname) {
+  try {
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractBusinessNameFromPage,
+    })
+    if (result) return result
+  } catch {
+    // e.g. a page the extension can't be injected into (Chrome Web Store, etc.)
+  }
+  return hostname
+}
+
+async function runSearch(query, { saveToList = false, listName = "" } = {}) {
   showState("loading")
   const { apiKey } = await chrome.storage.sync.get(["apiKey"])
   if (!apiKey) {
     showState("noKey")
     return
   }
-  const params = new URLSearchParams({ q: hostname, limit: "10" })
+  const params = new URLSearchParams({ q: query, limit: "10" })
   if (saveToList) {
     params.set("save_to_list", "true")
-    params.set("list_name", listName || hostname)
+    params.set("list_name", listName || query)
   }
   try {
     const res = await fetch(`${API_BASE}/v1/search-leads?${params.toString()}`, {
@@ -91,6 +147,14 @@ async function runSearch(hostname, { saveToList = false, listName = "" } = {}) {
       setTimeout(() => { el.saveAll.textContent = "Add all to list" }, 2500)
     }
     if (!lastLeads.length) {
+      // The extracted business name is a best guess — if Places doesn't
+      // recognize it and we haven't already tried the raw hostname, fall
+      // back to that before giving up.
+      if (!saveToList && query !== currentHostname && currentHostname) {
+        currentQuery = currentHostname
+        await runSearch(currentHostname)
+        return
+      }
       showState("empty")
       return
     }
@@ -102,21 +166,22 @@ async function runSearch(hostname, { saveToList = false, listName = "" } = {}) {
   }
 }
 
-el.retry.addEventListener("click", () => currentHostname && runSearch(currentHostname))
+el.retry.addEventListener("click", () => currentQuery && runSearch(currentQuery))
 el.openOptions.addEventListener("click", () => chrome.runtime.openOptionsPage())
 el.saveAll.addEventListener("click", () => {
-  if (!currentHostname) return
-  runSearch(currentHostname, { saveToList: true, listName: el.listName.value.trim() })
+  if (!currentQuery) return
+  runSearch(currentQuery, { saveToList: true, listName: el.listName.value.trim() })
 })
 
 ;(async function init() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   const hostname = tab?.url ? hostnameFromUrl(tab.url) : null
-  if (!hostname) {
+  if (!hostname || !tab.id) {
     showState("badTab")
     return
   }
   currentHostname = hostname
   el.domainBar.textContent = hostname
-  await runSearch(hostname)
+  currentQuery = await resolveSearchQuery(tab, hostname)
+  await runSearch(currentQuery)
 })()

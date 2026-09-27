@@ -12,7 +12,7 @@ Finds business leads for the site you're currently browsing, right from the tool
 
 ## How it works
 
-- Reads the hostname of the active tab and calls `GET /v1/search-leads?q=<hostname>` on the B2BLeads API using the stored API key.
+- Reads the active tab's page (via `chrome.scripting.executeScript`) to guess the business name — `og:site_name`, JSON-LD `Organization`/`LocalBusiness`, or the page `<title>` — since Google Places search matches on business names, not domains. Falls back to the raw hostname if extraction fails or the name search returns nothing.
 - "Add all to list" resends the same search with `save_to_list=true` — the API saves the results into a list server-side in one call, no separate endpoint needed.
 
 ## Not included in this MVP

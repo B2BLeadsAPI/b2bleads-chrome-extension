@@ -17,6 +17,6 @@
     "128": "icons/icon128.png"
   },
   "options_page": "options.html",
-  "permissions": ["activeTab", "storage"],
+  "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["https://api.b2bleadsapi.com/*"]
 }
